@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Volunteer Opportunities</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FAF7F2;
+  --warm-white:#FFFDF9;
+  --ink:#1C1814;
+  --ink-soft:#4A4540;
+  --ink-dim:#8C877F;
+  --border:#E8E2D8;
+  --border-soft:#F0EBE3;
+  --accent:#C85A2B;
+  --accent-light:#F5EAE4;
+  --accent-border:rgba(200,90,43,0.25);
+  --green:#2A7A52;
+  --green-light:#E8F4EE;
+  --r:8px;
+  --rl:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--cream);font-family:'Outfit',sans-serif;color:var(--ink);min-height:100vh;}
+
+/* ── HERO ── */
+.hero{background:var(--ink);position:relative;overflow:hidden;padding:72px 40px 60px;text-align:center;}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 20% 40%,rgba(200,90,43,0.18) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 70%,rgba(42,90,138,0.15) 0%,transparent 55%);pointer-events:none;}
+.hero-eyebrow{font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;}
+.hero-eyebrow::before,.hero-eyebrow::after{content:'';width:40px;height:1px;background:rgba(200,90,43,0.4);}
+.hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.8rem,6vw,4.5rem);font-weight:600;color:#FAF7F2;line-height:1.05;margin-bottom:20px;position:relative;}
+.hero h1 em{font-style:italic;color:var(--accent);}
+.hero-sub{font-size:15px;color:rgba(250,247,242,0.6);line-height:1.7;max-width:480px;margin:0 auto 36px;position:relative;}
+.hero-stats{display:flex;justify-content:center;gap:40px;position:relative;}
+.hero-stat-n{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:600;color:#FAF7F2;line-height:1;}
+.hero-stat-l{font-size:11px;color:rgba(250,247,242,0.45);margin-top:3px;letter-spacing:0.05em;}
+
+/* ── TOOLBAR ── */
+.toolbar{position:sticky;top:0;z-index:50;background:rgba(250,247,242,0.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:200px;}
+.search-wrap input{width:100%;padding:9px 14px 9px 36px;border-radius:var(--r);border:1px solid var(--border);background:var(--warm-white);font-family:'Outfit',sans-serif;font-size:13px;color:var(--ink);outline:none;transition:border-color 0.15s;}
+.search-wrap input:focus{border-color:var(--accent);}
+.search-wrap input::placeholder{color:var(--ink-dim);}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-dim);font-size:15px;pointer-events:none;}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;}
+.fpill{padding:6px 14px;border-radius:20px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);transition:all 0.15s;white-space:nowrap;}
+.fpill:hover{border-color:var(--ink-soft);color:var(--ink);}
+.fpill.active{background:var(--ink);border-color:var(--ink);color:var(--cream);}
+.view-toggle{display:flex;gap:4px;}
+.vbtn{width:32px;height:32px;border-radius:var(--r);border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-dim);transition:all 0.12s;}
+.vbtn:hover{color:var(--ink);border-color:var(--ink-soft);}
+.vbtn.active{background:var(--ink);border-color:var(--ink);color:var(--cream);}
+
+/* ── BODY ── */
+.page-body{padding:36px 32px 80px;max-width:1200px;margin:0 auto;}
+.section-label{font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── GRID ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
+.card{background:var(--warm-white);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;animation:cardIn 0.4s ease both;}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(28,24,20,0.1);border-color:rgba(28,24,20,0.15);}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card-stripe{height:3px;width:100%;}
+.card-body{padding:20px;flex:1;display:flex;flex-direction:column;}
+.card-cats{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.cat-chip{font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:1.25rem;font-weight:600;line-height:1.25;margin-bottom:10px;color:var(--ink);}
+.card-summary{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px;flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.card-meta{display:flex;gap:12px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border-soft);margin-bottom:14px;}
+.meta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-dim);}
+.card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.apply-btn{padding:8px 18px;border-radius:var(--r);border:none;background:var(--ink);color:var(--cream);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em;}
+.apply-btn:hover{background:var(--accent);transform:translateY(-1px);}
+.apply-btn.applied{background:var(--green);cursor:default;transform:none;}
+.dept-tag{font-size:11px;color:var(--ink-dim);background:var(--cream);padding:3px 8px;border-radius:4px;border:1px solid var(--border);}
+
+/* ── LIST ── */
+.list-view{display:none;}
+.list-view.show{display:block;}
+.grid-view.hide{display:none;}
+.list-item{background:var(--warm-white);border:1px solid var(--border);border-radius:var(--rl);padding:20px 24px;margin-bottom:12px;display:flex;align-items:center;gap:20px;cursor:pointer;transition:all 0.15s;animation:cardIn 0.3s ease both;}
+.list-item:hover{box-shadow:0 4px 20px rgba(28,24,20,0.08);border-color:rgba(28,24,20,0.15);}
+.list-stripe{width:4px;height:48px;border-radius:2px;flex-shrink:0;}
+.list-main{flex:1;min-width:0;}
+.list-title{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;margin-bottom:4px;}
+.list-sub{font-size:12px;color:var(--ink-dim);}
+.list-meta{display:flex;gap:16px;flex-shrink:0;}
+.list-meta-item{font-size:12px;color:var(--ink-soft);white-space:nowrap;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(28,24,20,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity 0.22s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--warm-white);border-radius:18px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto;transform:translateY(16px) scale(0.98);transition:transform 0.24s cubic-bezier(.4,0,.2,1);box-shadow:0 24px 80px rgba(28,24,20,0.25);}
+.modal-overlay.open .modal{transform:translateY(0) scale(1);}
+.modal-hero{position:relative;padding:28px 28px 24px;border-bottom:1px solid var(--border);}
+.modal-close{position:absolute;top:18px;right:18px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--cream);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--ink-soft);transition:all 0.12s;}
+.modal-close:hover{background:var(--ink);color:var(--cream);border-color:var(--ink);}
+.modal-cat{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:600;line-height:1.15;margin-bottom:8px;}
+.modal-dept{font-size:13px;color:var(--ink-dim);}
+.modal-body{padding:24px 28px;}
+.modal-section{margin-bottom:22px;}
+.modal-section-label{font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-dim);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.modal-section p{font-size:14px;color:var(--ink-soft);line-height:1.65;}
+.modal-chips{display:flex;flex-wrap:wrap;gap:7px;}
+.modal-chip{padding:4px 10px;border-radius:5px;font-size:12px;background:var(--cream);color:var(--ink-soft);border:1px solid var(--border);}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.mf-label{font-size:11px;color:var(--ink-dim);margin-bottom:3px;font-weight:500;}
+.mf-val{font-size:13px;color:var(--ink);}
+
+/* ── SIGNUP FORM ── */
+.signup-form{background:var(--cream);border:1px solid var(--border);border-radius:var(--rl);padding:22px;margin-top:4px;}
+.signup-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;margin-bottom:16px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row.single{grid-template-columns:1fr;}
+.field-group{display:flex;flex-direction:column;gap:4px;}
+.field-label{font-size:12px;font-weight:500;color:var(--ink-soft);}
+.field-input{padding:9px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--warm-white);font-family:'Outfit',sans-serif;font-size:13px;color:var(--ink);outline:none;transition:border-color 0.15s;}
+.field-input:focus{border-color:var(--accent);}
+.field-input::placeholder{color:var(--ink-dim);}
+textarea.field-input{resize:vertical;min-height:80px;line-height:1.6;}
+.field-input.error{border-color:var(--accent);}
+.submit-btn{width:100%;padding:12px;border-radius:var(--r);border:none;background:var(--ink);color:var(--cream);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;}
+.submit-btn:hover{background:var(--accent);}
+.submit-btn:disabled{background:var(--ink-dim);cursor:not-allowed;}
+
+/* ── SUCCESS ── */
+.success-state{text-align:center;padding:28px 20px;}
+.success-icon{width:52px;height:52px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px;color:var(--green);}
+.success-title{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;margin-bottom:8px;}
+.success-sub{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px;}
+.lead-card{background:var(--warm-white);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;text-align:left;}
+.lead-label{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
+.lead-name{font-size:14px;font-weight:500;margin-bottom:3px;}
+.lead-email{font-size:13px;color:var(--accent);}
+.lead-note{font-size:12px;color:var(--ink-dim);margin-top:8px;line-height:1.5;}
+
+/* ── CATEGORY COLORS ── */
+.cat-research{background:#EFF4FB;color:#2A5A8A;} .stripe-research{background:#2A5A8A;}
+.cat-writing{background:#F4F0E4;color:#8A6A2A;} .stripe-writing{background:#8A6A2A;}
+.cat-design{background:#EEE8F8;color:#5A2A8A;} .stripe-design{background:#5A2A8A;}
+.cat-tech{background:#E8EFF8;color:#2A4A8A;} .stripe-tech{background:#2A4A8A;}
+.cat-marketing{background:#F5EAE4;color:#C85A2B;} .stripe-marketing{background:#C85A2B;}
+.cat-finance{background:#E8F4EE;color:#2A7A52;} .stripe-finance{background:#2A7A52;}
+.cat-events{background:#FEF8E8;color:#8A7A2A;} .stripe-events{background:#8A7A2A;}
+.cat-translation{background:#F8EEF4;color:#8A2A6A;} .stripe-translation{background:#8A2A6A;}
+.cat-admin{background:#F0F0F0;color:#4A4A4A;} .stripe-admin{background:#888;}
+.cat-other{background:#F5F5F5;color:#666;} .stripe-other{background:#999;}
+
+/* ── MY APPLICATIONS PANEL ── */
+.my-apps-panel{display:none;position:fixed;inset:0;z-index:300;background:rgba(28,24,20,0.55);align-items:flex-end;justify-content:center;}
+.my-apps-panel.open{display:flex;}
+.my-apps-sheet{background:var(--warm-white);border-radius:18px 18px 0 0;width:100%;max-width:680px;max-height:85vh;display:flex;flex-direction:column;transform:translateY(40px);opacity:0;transition:all 0.28s cubic-bezier(.4,0,.2,1);}
+.my-apps-panel.open .my-apps-sheet{transform:translateY(0);opacity:1;}
+.my-apps-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.my-apps-title{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600;flex:1;}
+.my-apps-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--cream);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-soft);transition:all 0.12s;}
+.my-apps-close:hover{background:var(--ink);color:var(--cream);}
+.my-apps-body{padding:20px 24px;overflow-y:auto;flex:1;}
+.my-apps-lookup{display:flex;gap:10px;margin-bottom:20px;}
+.my-apps-lookup input{flex:1;padding:9px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--cream);font-family:'Outfit',sans-serif;font-size:13px;color:var(--ink);outline:none;transition:border-color 0.15s;}
+.my-apps-lookup input:focus{border-color:var(--accent);}
+.my-apps-lookup button{padding:9px 18px;border-radius:var(--r);border:none;background:var(--ink);color:var(--cream);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.my-apps-lookup button:hover{background:var(--accent);}
+.app-card{background:var(--cream);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;}
+.app-card-stripe{width:3px;border-radius:2px;align-self:stretch;flex-shrink:0;}
+.app-card-body{flex:1;min-width:0;}
+.app-card-title{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;margin-bottom:4px;}
+.app-card-meta{font-size:12px;color:var(--ink-dim);margin-bottom:8px;}
+.app-card-status{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.app-card-lead{font-size:12px;color:var(--ink-dim);margin-top:8px;}
+.app-card-lead a{color:var(--accent);text-decoration:none;}
+.app-card-lead a:hover{text-decoration:underline;}
+
+/* ── MY APPS NAV BTN ── */
+.my-apps-nav-btn{padding:6px 14px;border-radius:20px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--cream);transition:all 0.15s;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.my-apps-nav-btn:hover{background:var(--accent);border-color:var(--accent);}
+.my-apps-badge{background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;}
+
+/* ── MISC ── */
+.empty{text-align:center;padding:60px 20px;color:var(--ink-dim);}
+.empty-icon{font-size:32px;margin-bottom:12px;}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;}
+.spinner.dark{border:2px solid var(--border);border-top-color:var(--accent);}
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:14px;color:var(--ink-soft);}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+@media(max-width:680px){
+  .hero{padding:48px 20px 40px;}
+  .toolbar{padding:12px 16px;}
+  .page-body{padding:24px 16px 60px;}
+  .modal-hero,.modal-body{padding:20px;}
+  .form-row,.modal-grid{grid-template-columns:1fr;}
+  .hero-stats{gap:24px;}
+  .list-meta{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-eyebrow">Remote Volunteer Opportunities</div>
+  <h1>Make an <em>Impact</em><br>From Anywhere</h1>
+  <p class="hero-sub">Browse open volunteer roles, find your fit, and connect directly with the team lead for each opportunity.</p>
+  <div class="hero-stats">
+    <div><div class="hero-stat-n" id="stat-open">—</div><div class="hero-stat-l">Open roles</div></div>
+    <div><div class="hero-stat-n" id="stat-cats">—</div><div class="hero-stat-l">Categories</div></div>
+    <div><div class="hero-stat-n" id="stat-hrs">—</div><div class="hero-stat-l">Avg hrs / week</div></div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="search-input" placeholder="Search by role, skill, or category…"/>
+  </div>
+  <div class="filter-row" id="cat-filters">
+    <button class="fpill active" data-cat="all">All roles</button>
+  </div>
+  <div class="view-toggle">
+    <button class="vbtn active" id="btn-grid" title="Grid">⊞</button>
+    <button class="vbtn" id="btn-list" title="List">☰</button>
+  </div>
+  <button class="my-apps-nav-btn" onclick="openMyApps()">
+    My Applications
+    <span class="my-apps-badge" id="my-apps-count" style="display:none">0</span>
+  </button>
+</div>
+
+<!-- My Applications Panel -->
+<div class="my-apps-panel" id="my-apps-panel" onclick="handleMyAppsOverlay(event)">
+  <div class="my-apps-sheet">
+    <div class="my-apps-header">
+      <div class="my-apps-title">My Applications</div>
+      <button class="my-apps-close" onclick="closeMyApps()">✕</button>
+    </div>
+    <div class="my-apps-body">
+      <div class="my-apps-lookup">
+        <input type="email" id="lookup-email" placeholder="Enter your email to view your applications…"/>
+        <button onclick="lookupApps()">Look up</button>
+      </div>
+      <div id="my-apps-results"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page-body">
+  <div id="section-label" class="section-label">Loading opportunities…</div>
+  <div class="grid-view" id="grid-view">
+    <div class="grid" id="cards-grid">
+      <div class="loading-state" style="grid-column:1/-1"><div class="spinner dark"></div><span style="font-size:14px">Loading from Airtable…</span></div>
+    </div>
+  </div>
+  <div class="list-view" id="list-view">
+    <div id="list-container"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-hero">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-cat" id="m-cat"></div>
+      <div class="modal-title" id="m-title"></div>
+      <div class="modal-dept" id="m-dept"></div>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const AT_TOKEN = "patO98dnLtXqeWKQw.4f10f0599e36cfbb444e49c0882849f71cfe74eb83a19dd43fd64b0e60931735";
+const AT_BASE  = "appyeRn6EmLdTOQvy";
+const OPP_TABLE = "Submissions";   // existing table (3 s's)
+const APP_TABLE = "Applicants";     // new table — created automatically on first submit
+
+const OPP_URL = `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(OPP_TABLE)}`;
+const APP_URL = `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(APP_TABLE)}`;
+const AT_HEADERS = { "Authorization": `Bearer ${AT_TOKEN}`, "Content-Type": "application/json" };
+
+// Lead directory — matched by department
+const LEADS = {
+  "Development":    { name:"Maria Chen",        email:"m.chen@org.org" },
+  "Communications": { name:"James Okonkwo",     email:"j.okonkwo@org.org" },
+  "Programs":       { name:"Sofia Reyes",        email:"s.reyes@org.org" },
+  "Operations":     { name:"Marcus Thompson",   email:"m.thompson@org.org" },
+  "Technology":     { name:"Priya Nair",         email:"p.nair@org.org" },
+  "default":        { name:"Volunteer Coordinator", email:"volunteers@org.org" },
+};
+function getLead(dept){ return LEADS[dept] || LEADS["default"]; }
+
+function catClass(cat){
+  const map={"Research & Data":"research","Writing & Editing":"writing","Design & Creative":"design","Technology & IT":"tech","Marketing & Outreach":"marketing","Finance & Accounting":"finance","Event Support":"events","Translation & Language":"translation","Administration":"admin"};
+  return map[cat]||"other";
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let ALL = [];
+let currentCat = "all";
+let currentSearch = "";
+let currentView = "grid";
+let appliedSet = new Set(JSON.parse(localStorage.getItem("vol_applied") || "[]"));
+
+// ── AIRTABLE HELPERS ──────────────────────────────────────────────────────────
+async function atFetch(url, opts={}) {
+  const res = await fetch(url, { ...opts, headers: { ...AT_HEADERS, ...(opts.headers||{}) } });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err?.error?.message || `Airtable error ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── LOAD OPPORTUNITIES ────────────────────────────────────────────────────────
+async function load() {
+  try {
+    let records = [], offset = null;
+    do {
+      const filter = encodeURIComponent("Status='Active'");
+      const url = OPP_URL + `?pageSize=100&filterByFormula=${filter}` + (offset ? `&offset=${offset}` : "");
+      const data = await atFetch(url);
+      records = [...records, ...(data.records || [])];
+      offset = data.offset || null;
+    } while (offset);
+
+    ALL = records.map(r => ({
+      id:              r.id,
+      title:           r.fields["Title"]             || "",
+      dept:            r.fields["Department"]         || "",
+      category:        r.fields["Category"]           || "",
+      summary:         r.fields["Summary"]            || "",
+      responsibilities:r.fields["Responsibilities"]   || "",
+      skills:          r.fields["Skills Required"]    || "",
+      preferred:       r.fields["Preferred Skills"]   || "",
+      tools:           (r.fields["Tools Needed"] || "").split(",").map(t=>t.trim()).filter(Boolean),
+      training:        r.fields["Training Provided"]  || "",
+      hours:           r.fields["Hours Per Week"]     || 0,
+      flexibility:     r.fields["Flexibility"]        || "",
+      start:           r.fields["Start Date"]         || "",
+      duration:        r.fields["Duration"]           || "",
+      spots:           r.fields["Spots Available"]    || null,
+      meetings:        r.fields["Meeting Cadence"]    || "",
+    })).filter(o => o.title);
+
+    renderStats();
+    buildCatFilters();
+    render();
+
+  } catch(e) {
+    document.getElementById("cards-grid").innerHTML = `
+      <div class="loading-state" style="grid-column:1/-1;color:var(--accent)">
+        <div style="font-size:28px">⚠</div>
+        <span style="font-size:14px">${e.message}</span>
+        <button onclick="load()" style="padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px">Retry</button>
+      </div>`;
+  }
+}
+
+// ── STATS ──────────────────────────────────────────────────────────────────────
+function renderStats() {
+  document.getElementById("stat-open").textContent = ALL.length;
+  const cats = new Set(ALL.map(o => o.category).filter(Boolean));
+  document.getElementById("stat-cats").textContent = cats.size;
+  const avg = ALL.length ? Math.round(ALL.reduce((a,o) => a + (o.hours||0), 0) / ALL.length) : 0;
+  document.getElementById("stat-hrs").textContent = avg;
+}
+
+// ── FILTERS ────────────────────────────────────────────────────────────────────
+function buildCatFilters() {
+  const cats = [...new Set(ALL.map(o => o.category).filter(Boolean))].sort();
+  const row = document.getElementById("cat-filters");
+  row.innerHTML = `<button class="fpill active" data-cat="all" onclick="filterCat(this,'all')">All roles</button>`;
+  cats.forEach(c => {
+    const btn = document.createElement("button");
+    btn.className = "fpill";
+    btn.dataset.cat = c;
+    btn.textContent = c;
+    btn.onclick = () => filterCat(btn, c);
+    row.appendChild(btn);
+  });
+}
+
+function filterCat(el, cat) {
+  document.querySelectorAll(".fpill").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  currentCat = cat;
+  render();
+}
+
+function getFiltered() {
+  return ALL.filter(o => {
+    const mc = currentCat === "all" || o.category === currentCat;
+    const q = currentSearch.toLowerCase();
+    const ms = !q || o.title.toLowerCase().includes(q) || o.summary.toLowerCase().includes(q) || o.skills.toLowerCase().includes(q) || (o.tools||[]).join(" ").toLowerCase().includes(q) || o.category.toLowerCase().includes(q);
+    return mc && ms;
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+function render() {
+  const rows = getFiltered();
+  const lbl = document.getElementById("section-label");
+  lbl.textContent = rows.length === 0 ? "No opportunities found"
+    : rows.length === ALL.length ? `${ALL.length} open ${ALL.length===1?"opportunity":"opportunities"}`
+    : `${rows.length} of ${ALL.length} opportunities`;
+  if (currentView === "grid") renderGrid(rows);
+  else renderList(rows);
+}
+
+function renderGrid(rows) {
+  const grid = document.getElementById("cards-grid");
+  if (!rows.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>No opportunities match your search.</p></div>`; return; }
+  grid.innerHTML = rows.map((o,i) => {
+    const cc = catClass(o.category);
+    const applied = appliedSet.has(o.id);
+    return `
+    <div class="card" style="animation-delay:${i*0.04}s" onclick="openModal('${o.id}')">
+      <div class="card-stripe stripe-${cc}"></div>
+      <div class="card-body">
+        <div class="card-cats"><span class="cat-chip cat-${cc}">${o.category||"General"}</span></div>
+        <div class="card-title">${o.title}</div>
+        <div class="card-summary">${o.summary}</div>
+        <div class="card-meta">
+          <div class="meta-item"><span>⏱</span>${o.hours} hrs/wk</div>
+          ${o.start?`<div class="meta-item"><span>📅</span>${o.start}</div>`:""}
+          ${o.spots?`<div class="meta-item"><span>👥</span>${o.spots} spot${o.spots>1?"s":""}</div>`:""}
+        </div>
+        <div class="card-footer">
+          <button class="apply-btn ${applied?"applied":""}" onclick="event.stopPropagation();openModal('${o.id}')">${applied?"✓ Applied":"View & Apply"}</button>
+          <span class="dept-tag">${o.dept||"General"}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderList(rows) {
+  const container = document.getElementById("list-container");
+  if (!rows.length) { container.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>No opportunities match your search.</p></div>`; return; }
+  container.innerHTML = rows.map((o,i) => {
+    const cc = catClass(o.category);
+    return `
+    <div class="list-item" style="animation-delay:${i*0.03}s" onclick="openModal('${o.id}')">
+      <div class="list-stripe stripe-${cc}"></div>
+      <div class="list-main">
+        <div class="list-title">${o.title}</div>
+        <div class="list-sub">${o.dept} · <span class="cat-chip cat-${cc}" style="padding:1px 6px">${o.category}</span></div>
+      </div>
+      <div class="list-meta">
+        <div class="list-meta-item">⏱ ${o.hours} hrs/wk</div>
+        <div class="list-meta-item">📅 ${o.start||"Flexible"}</div>
+        ${o.spots?`<div class="list-meta-item">👥 ${o.spots} spots</div>`:""}
+      </div>
+      <button class="apply-btn ${appliedSet.has(o.id)?"applied":""}" onclick="event.stopPropagation();openModal('${o.id}')">${appliedSet.has(o.id)?"✓ Applied":"Apply"}</button>
+    </div>`;
+  }).join("");
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const o = ALL.find(x => x.id === id);
+  if (!o) return;
+  const lead = getLead(o.dept);
+  const applied = appliedSet.has(o.id);
+
+  document.getElementById("m-cat").textContent = o.category || "Volunteer Opportunity";
+  document.getElementById("m-title").textContent = o.title;
+  document.getElementById("m-dept").textContent = [o.dept, o.start?"Starts "+o.start:""].filter(Boolean).join(" · ");
+
+  document.getElementById("m-body").innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-label">About this role</div>
+      <p>${o.summary}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">What you'll do</div>
+      <p>${o.responsibilities}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">What we're looking for</div>
+      <p${o.preferred?' style="margin-bottom:10px"':''}>${o.skills}</p>
+      ${o.preferred?`<p style="color:var(--ink-dim);font-size:13px"><strong style="color:var(--ink-soft)">Nice to have:</strong> ${o.preferred}</p>`:""}
+    </div>
+    ${o.tools&&o.tools.length?`
+    <div class="modal-section">
+      <div class="modal-section-label">Tools & technology</div>
+      <div class="modal-chips">${o.tools.map(t=>`<span class="modal-chip">${t}</span>`).join("")}</div>
+    </div>`:""}
+    <div class="modal-section">
+      <div class="modal-section-label">Commitment details</div>
+      <div class="modal-grid">
+        <div><div class="mf-label">Hours per week</div><div class="mf-val">${o.hours} hrs</div></div>
+        <div><div class="mf-label">Duration</div><div class="mf-val">${o.duration||"Ongoing"}</div></div>
+        <div><div class="mf-label">Flexibility</div><div class="mf-val">${o.flexibility||"Flexible"}</div></div>
+        <div><div class="mf-label">Meetings</div><div class="mf-val">${o.meetings||"As needed"}</div></div>
+        ${o.spots?`<div><div class="mf-label">Spots available</div><div class="mf-val">${o.spots}</div></div>`:""}
+      </div>
+    </div>
+    ${o.training?`
+    <div class="modal-section">
+      <div class="modal-section-label">Training & onboarding</div>
+      <p>${o.training}</p>
+    </div>`:""}
+    <div class="modal-section" id="signup-section">
+      ${applied ? renderSuccess(o, lead, true) : renderSignupForm(o, lead)}
+    </div>
+  `;
+
+  document.getElementById("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function renderSignupForm(o, lead) {
+  return `
+    <div class="signup-form">
+      <div class="signup-title">Express Interest</div>
+      <div class="form-row">
+        <div class="field-group">
+          <label class="field-label">First name *</label>
+          <input class="field-input" id="v-fname" placeholder="Your first name"/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Last name *</label>
+          <input class="field-input" id="v-lname" placeholder="Your last name"/>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="field-group">
+          <label class="field-label">Email address *</label>
+          <input class="field-input" id="v-email" type="email" placeholder="you@example.com"/>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="field-group">
+          <label class="field-label">Why are you interested in this role?</label>
+          <textarea class="field-input" id="v-why" placeholder="Tell us a little about yourself and why this opportunity interests you…"></textarea>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="field-group">
+          <label class="field-label">Relevant experience or skills</label>
+          <input class="field-input" id="v-skills" placeholder="Brief summary of related experience"/>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-dim);margin:12px 0 14px;line-height:1.5;padding:10px 12px;background:var(--warm-white);border-radius:var(--r);border:1px solid var(--border)">
+        📬 Your application will be saved and shared with <strong style="color:var(--ink-soft)">${lead.name}</strong>, who leads this role. They'll follow up at your email address.
+      </div>
+      <button class="submit-btn" id="submit-btn" onclick="submitInterest('${o.id}')">
+        Submit Interest
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5h10M7 2l4.5 4.5L7 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function renderSuccess(o, lead, alreadyApplied=false) {
+  return `
+    <div class="success-state">
+      <div class="success-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11l5 5L18 6" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="success-title">${alreadyApplied?"Already Applied!":"Application Saved!"}</div>
+      <p class="success-sub">${alreadyApplied
+        ? "You've already expressed interest in this role. Your lead will be in touch."
+        : "Your application has been saved to our database. Your lead will reach out soon."
+      }</p>
+      <div class="lead-card">
+        <div class="lead-label">Your point of contact</div>
+        <div class="lead-name">${lead.name}</div>
+        <div class="lead-email">${lead.email}</div>
+        <div class="lead-note">Feel free to reach out directly if you have questions before hearing back.</div>
+      </div>
+    </div>
+  `;
+}
+
+// ── SUBMIT TO AIRTABLE ────────────────────────────────────────────────────────
+async function submitInterest(oppId) {
+  const fname = document.getElementById("v-fname")?.value.trim();
+  const lname = document.getElementById("v-lname")?.value.trim();
+  const email = document.getElementById("v-email")?.value.trim();
+  const why   = document.getElementById("v-why")?.value.trim();
+  const skills= document.getElementById("v-skills")?.value.trim();
+
+  // Validate
+  let hasError = false;
+  ["v-fname","v-lname","v-email"].forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el && !el.value.trim()) { el.classList.add("error"); hasError = true; }
+    else if (el) el.classList.remove("error");
+  });
+  if (hasError) return;
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Saving to Airtable…`;
+
+  const o = ALL.find(x => x.id === oppId);
+  const lead = getLead(o?.dept || "");
+
+  try {
+    await atFetch(APP_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        records: [{
+          fields: {
+            "First Name":          fname,
+            "Last Name":           lname,
+            "Email":               email,
+            "Opportunity Title":   o?.title || "",
+            "Opportunity ID":      oppId,
+            "Department":          o?.dept || "",
+            "Category":            o?.category || "",
+            "Lead Name":           lead.name,
+            "Lead Email":          lead.email,
+            "Why Interested":      why || "",
+            "Relevant Experience": skills || "",
+            "Status":              "New",
+            "Submitted Date":      new Date().toISOString().slice(0,10),
+          }
+        }]
+      })
+    });
+
+    // Save to localStorage so they can't double-submit
+    appliedSet.add(oppId);
+    localStorage.setItem("vol_applied", JSON.stringify([...appliedSet]));
+
+    // Swap form → success
+    const section = document.getElementById("signup-section");
+    if (section) section.innerHTML = renderSuccess(o, lead, false);
+
+    // Refresh cards to show "Applied" state
+    render();
+
+  } catch(err) {
+    btn.disabled = false;
+    btn.innerHTML = `Submit Interest →`;
+    const errDiv = document.createElement("div");
+    errDiv.style.cssText = "margin-top:10px;padding:10px 12px;border-radius:8px;background:#fce8e6;color:#c5221f;font-size:13px;border:1px solid rgba(197,34,31,0.3)";
+    errDiv.textContent = "⚠ Could not save your application: " + err.message;
+    btn.parentNode.appendChild(errDiv);
+  }
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById("modal-overlay")) closeModal();
+}
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+document.getElementById("search-input").addEventListener("input", function(){
+  currentSearch = this.value; render();
+});
+document.getElementById("btn-grid").addEventListener("click", function(){
+  currentView="grid"; this.classList.add("active");
+  document.getElementById("btn-list").classList.remove("active");
+  document.getElementById("grid-view").classList.remove("hide");
+  document.getElementById("list-view").classList.remove("show");
+  render();
+});
+document.getElementById("btn-list").addEventListener("click", function(){
+  currentView="list"; this.classList.add("active");
+  document.getElementById("btn-grid").classList.remove("active");
+  document.getElementById("grid-view").classList.add("hide");
+  document.getElementById("list-view").classList.add("show");
+  render();
+});
+document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+
+// ── MY APPLICATIONS ───────────────────────────────────────────────────────────
+const APP_STATUS_COLORS={"New":"#5B9EE8","Contacted":"#E8C95B","Accepted":"#5DC490","Declined":"#E86070","Waitlisted":"#A07AE8"};
+
+function openMyApps(){
+  document.getElementById("my-apps-panel").classList.add("open");
+  document.body.style.overflow="hidden";
+  // Auto-populate email if stored
+  const saved=localStorage.getItem("vol_email");
+  if(saved){
+    document.getElementById("lookup-email").value=saved;
+    lookupApps();
+  }
+}
+
+function closeMyApps(){
+  document.getElementById("my-apps-panel").classList.remove("open");
+  document.body.style.overflow="";
+}
+
+function handleMyAppsOverlay(e){
+  if(e.target===document.getElementById("my-apps-panel"))closeMyApps();
+}
+
+async function lookupApps(){
+  const email=document.getElementById("lookup-email").value.trim();
+  if(!email){
+    document.getElementById("my-apps-results").innerHTML=`<p style="font-size:13px;color:var(--ink-dim)">Please enter your email address.</p>`;
+    return;
+  }
+  localStorage.setItem("vol_email",email);
+  const results=document.getElementById("my-apps-results");
+  results.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--ink-dim);font-size:13px;padding:20px 0"><span class="spinner dark"></span> Looking up your applications…</div>`;
+
+  try{
+    const filter=encodeURIComponent(`{Email}="${email}"`);
+    const url=APP_URL+`?pageSize=100&filterByFormula=${filter}`;
+    const data=await atFetch(url);
+    const apps=(data.records||[]).map(r=>({
+      id:         r.id,
+      title:      r.fields["Opportunity Title"]  ||"",
+      dept:       r.fields["Department"]         ||"",
+      category:   r.fields["Category"]           ||"",
+      leadName:   r.fields["Lead Name"]          ||"",
+      leadEmail:  r.fields["Lead Email"]         ||"",
+      status:     r.fields["Status"]             ||"New",
+      date:       r.fields["Submitted Date"]     ||"",
+      why:        r.fields["Why Interested"]     ||"",
+    }));
+
+    if(!apps.length){
+      results.innerHTML=`
+        <div style="text-align:center;padding:36px 20px;color:var(--ink-dim)">
+          <div style="font-size:28px;margin-bottom:10px">📭</div>
+          <p style="font-size:14px">No applications found for <strong style="color:var(--ink-soft)">${email}</strong>.</p>
+          <p style="font-size:12px;margin-top:6px">Make sure you're using the same email you applied with.</p>
+        </div>`;
+      return;
+    }
+
+    // Sync applied set with what's actually in Airtable
+    apps.forEach(a=>{
+      const match=ALL.find(o=>o.title===a.title);
+      if(match)appliedSet.add(match.id);
+    });
+    localStorage.setItem("vol_applied",JSON.stringify([...appliedSet]));
+    updateMyAppsCount();
+    render();
+
+    results.innerHTML=`
+      <p style="font-size:12px;color:var(--ink-dim);margin-bottom:14px">${apps.length} application${apps.length===1?"":"s"} found for <strong style="color:var(--ink-soft)">${email}</strong></p>
+      ${apps.map(a=>{
+        const cc=catClass(a.category);
+        const sc=APP_STATUS_COLORS[a.status]||"#888";
+        return `
+        <div class="app-card">
+          <div class="app-card-stripe stripe-${cc}"></div>
+          <div class="app-card-body">
+            <div class="app-card-title">${a.title}</div>
+            <div class="app-card-meta">${a.dept}${a.date?" · Applied "+a.date:""}</div>
+            <span class="app-card-status" style="background:${sc}22;color:${sc};border:1px solid ${sc}44">
+              <span style="width:5px;height:5px;border-radius:50%;background:${sc};display:inline-block"></span>
+              ${a.status}
+            </span>
+            <div class="app-card-lead">
+              Your lead: <strong>${a.leadName}</strong> —
+              <a href="mailto:${a.leadEmail}?subject=Re: ${encodeURIComponent(a.title)}">${a.leadEmail}</a>
+            </div>
+          </div>
+        </div>`;
+      }).join("")}`;
+
+  }catch(err){
+    results.innerHTML=`<p style="font-size:13px;color:#c5221f;padding:12px;background:#fce8e6;border-radius:8px">⚠ ${err.message}</p>`;
+  }
+}
+
+function updateMyAppsCount(){
+  const badge=document.getElementById("my-apps-count");
+  const n=appliedSet.size;
+  if(n>0){badge.textContent=n;badge.style.display="inline";}
+  else badge.style.display="none";
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+load();
+updateMyAppsCount();
+</script>
+</body>
+</html>

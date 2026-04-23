@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Volunteer Opportunity Portal</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f5f5f5;
+  --color-background-tertiary:#efefef;
+  --color-background-info:#e8f0fe;
+  --color-background-success:#e6f4ea;
+  --color-background-danger:#fce8e6;
+  --color-text-primary:#1a1a1a;
+  --color-text-secondary:#555;
+  --color-text-tertiary:#999;
+  --color-text-info:#1a73e8;
+  --color-text-success:#188038;
+  --color-text-danger:#c5221f;
+  --color-border-tertiary:rgba(0,0,0,0.1);
+  --color-border-secondary:rgba(0,0,0,0.18);
+  --color-border-primary:rgba(0,0,0,0.3);
+  --color-border-info:rgba(26,115,232,0.4);
+  --color-border-success:rgba(24,128,56,0.35);
+  --color-border-danger:rgba(197,34,31,0.4);
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-serif:Georgia,'Times New Roman',serif;
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#1e1e1e;
+    --color-background-secondary:#2a2a2a;
+    --color-background-tertiary:#141414;
+    --color-background-info:#1a2a4a;
+    --color-background-success:#1a3a28;
+    --color-background-danger:#3a1a1a;
+    --color-text-primary:#e8e8e8;
+    --color-text-secondary:#aaa;
+    --color-text-tertiary:#666;
+    --color-text-info:#7aadff;
+    --color-text-success:#6fcf97;
+    --color-text-danger:#ff8a80;
+    --color-border-tertiary:rgba(255,255,255,0.08);
+    --color-border-secondary:rgba(255,255,255,0.15);
+    --color-border-primary:rgba(255,255,255,0.28);
+    --color-border-info:rgba(122,173,255,0.35);
+    --color-border-success:rgba(111,207,151,0.35);
+    --color-border-danger:rgba(255,138,128,0.35);
+  }
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{font-family:var(--font-sans);background:var(--color-background-tertiary);color:var(--color-text-primary);min-height:100vh}
+input,select,textarea,button{font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--color-border-secondary);border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+// ─── AIRTABLE CONFIG ─────────────────────────────────────────────────────────
+const AT_TOKEN = "patO98dnLtXqeWKQw.4f10f0599e36cfbb444e49c0882849f71cfe74eb83a19dd43fd64b0e60931735";
+const AT_BASE  = "appyeRn6EmLdTOQvy";
+const AT_TABLE = "Submissions";
+
+const AT_URL  = `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent(AT_TABLE)}`;
+const APP_URL = `https://api.airtable.com/v0/${AT_BASE}/${encodeURIComponent("Applicants")}`;
+const AT_HEADERS = {"Authorization":`Bearer ${AT_TOKEN}`,"Content-Type":"application/json"};
+
+// Map our app fields → Airtable field names
+function toAirtable(s) {
+  return {
+    "Title":            s.title        || "",
+    "Submitter Name":   s.submitter    || "",
+    "Submitter Email":  s.email        || "",
+    "Department":       s.dept         || "",
+    "Category":         s.category     || "",
+    "Status":           s.status       || "New",
+    "Hours Per Week":   s.hours        || 0,
+    "Flexibility":      s.flexibility  || "",
+    "Start Date":       s.start        || "",
+    "Duration":         s.duration     || "",
+    "Spots Available":  s.spots        ? String(s.spots) : "",
+    "Meeting Cadence":  s.meetings     || "",
+    "Summary":          s.summary      || "",
+    "Responsibilities": s.responsibilities || "",
+    "Skills Required":  s.skills       || "",
+    "Preferred Skills": s.preferred    || "",
+    "Tools Needed":     (s.tools||[]).join(", "),
+    "Training Provided":s.training     || "",
+    "Assigned To":      s.assignee     || "",
+    "Notes":            (s.notes||[]).map(n=>`[${n.author} – ${n.date}] ${n.text}`).join("\n\n"),
+    "Submitted Date":   s.date         || new Date().toISOString().slice(0,10),
+  };
+}
+
+function fromAirtable(rec) {
+  const f = rec.fields;
+  return {
+    id:             rec.id,
+    airtableId:     rec.id,
+    title:          f["Title"]            || "",
+    submitter:      f["Submitter Name"]   || "",
+    email:          f["Submitter Email"]  || "",
+    dept:           f["Department"]       || "",
+    category:       f["Category"]         || "",
+    status:         f["Status"]           || "New",
+    hours:          f["Hours Per Week"]   || 0,
+    flexibility:    f["Flexibility"]      || "",
+    start:          f["Start Date"]       || "",
+    duration:       f["Duration"]         || "",
+    spots:          f["Spots Available"]  ? Number(f["Spots Available"]) : null,
+    meetings:       f["Meeting Cadence"]  || "",
+    summary:        f["Summary"]          || "",
+    responsibilities: f["Responsibilities"] || "",
+    skills:         f["Skills Required"]  || "",
+    preferred:      f["Preferred Skills"] || "",
+    tools:          f["Tools Needed"] ? f["Tools Needed"].split(", ").filter(Boolean) : [],
+    training:       f["Training Provided"]|| "",
+    assignee:       f["Assigned To"]      || null,
+    date:           f["Submitted Date"]   || "",
+    notes:          f["Notes"] ? f["Notes"].split("\n\n").filter(Boolean).map(n=>{
+      const m=n.match(/^\[(.+) – (.+)\] (.+)$/s);
+      return m?{author:m[1],date:m[2],text:m[3]}:{author:"Note",date:"",text:n};
+    }) : [],
+    history:[],
+  };
+}
+
+async function atFetch(url, opts={}) {
+  const res = await fetch(url, {...opts, headers:{...AT_HEADERS,...(opts.headers||{})}});
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err?.error?.message || `Airtable error ${res.status}`);
+  }
+  return res.json();
+}
+
+async function loadAll() {
+  let records=[], offset=null;
+  do {
+    const url = AT_URL + "?pageSize=100" + (offset?`&offset=${offset}`:"");
+    const data = await atFetch(url);
+    records = [...records, ...(data.records||[])];
+    offset = data.offset || null;
+  } while(offset);
+  return records.map(fromAirtable).reverse();
+}
+
+async function createRecord(fields) {
+  const data = await atFetch(AT_URL, {method:"POST", body:JSON.stringify({records:[{fields}]})});
+  return fromAirtable(data.records[0]);
+}
+
+async function updateRecord(airtableId, fields) {
+  await atFetch(`${AT_URL}/${airtableId}`, {method:"PATCH", body:JSON.stringify({fields})});
+}
+
+// Only patch the specific fields that changed — much safer than rewriting the whole record
+function patchFields(patch) {
+  const out = {};
+  if (patch.status      !== undefined) out["Status"]      = patch.status || "";
+  if (patch.assignee    !== undefined) out["Assigned To"] = patch.assignee || "";
+  if (patch.notes       !== undefined) out["Notes"]       = (patch.notes||[]).map(n=>`[${n.author} – ${n.date}] ${n.text}`).join("\n\n");
+  return out;
+}
+
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const TOOLS_LIST=["Google Workspace","Microsoft Office","Slack","Zoom / Video","Canva / Design","CRM / Database","Social Media","Coding / Dev"];
+const FLEX_LIST=["Fully flexible — any hours","Core hours required","Scheduled meetings required","Deadline-based only"];
+const CATS=["Writing & Editing","Research & Data","Design & Creative","Technology & IT","Marketing & Outreach","Finance & Accounting","Event Support","Translation & Language","Administration","Other"];
+const MEETINGS_LIST=["No regular meetings","As-needed / async only","Weekly 30-min check-in","Bi-weekly check-in","Monthly check-in","Multiple times per week"];
+const STATUS_LIST=["New","Under Review","Active","Assigned","Closed","Hidden","Archived"];
+const TEAM=["KC (You)","Alicia Ware","Devon Park","Marcus Liu"];
+const STATUS_COLORS={New:"#5B9EE8","Under Review":"#E8C95B",Active:"#5DC490",Assigned:"#A07AE8",Closed:"#888",Hidden:"#B07A3A",Archived:"#6A6A7A"};
+
+function nowShort(){return new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});}
+function nowStr(){return new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+
+function Badge({status}){
+  const c=STATUS_COLORS[status]||"#888";
+  return <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:600,background:c+"22",color:c,border:`1px solid ${c}44`}}>
+    <span style={{width:5,height:5,borderRadius:"50%",background:c,display:"inline-block"}}/>
+    {status}
+  </span>;
+}
+
+function Spinner(){
+  return <div style={{display:"inline-block",width:16,height:16,border:"2px solid var(--color-border-secondary)",borderTopColor:"var(--color-text-info)",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+}
+
+// ─── FORM ────────────────────────────────────────────────────────────────────
+function emptyOpp(){return{title:"",category:"",spots:"",summary:"",responsibilities:"",impact:"",skills:"",preferred:"",tools:[],language:"",training:"",hours:5,flexibility:"",meetings:"",start:"",end:"",supervision:"",notes:""};}
+
+function OppForm({opp,idx,onChange,onRemove,isOnly}){
+  const [open,setOpen]=useState(true);
+  function field(k,v){onChange(idx,{...opp,[k]:v});}
+  function toggleTool(t){
+    const tools=opp.tools.includes(t)?opp.tools.filter(x=>x!==t):[...opp.tools,t];
+    onChange(idx,{...opp,tools});
+  }
+  const dot=<span style={{width:5,height:5,borderRadius:"50%",background:"var(--color-text-info)",display:"inline-block",marginLeft:2}}/>;
+  const is={width:"100%",padding:"8px 11px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none"};
+  const ta={...is,resize:"vertical",minHeight:72,lineHeight:1.6};
+  const sel={...is,cursor:"pointer",appearance:"none",backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%23888' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,backgroundRepeat:"no-repeat",backgroundPosition:"right 10px center",paddingRight:28};
+  const chip=(active)=>({display:"inline-flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:"var(--border-radius-md)",border:`0.5px solid ${active?"var(--color-border-info)":"var(--color-border-secondary)"}`,background:active?"var(--color-background-info)":"var(--color-background-primary)",color:active?"var(--color-text-info)":"var(--color-text-secondary)",fontSize:12,cursor:"pointer",userSelect:"none",marginBottom:4});
+  const ls={fontSize:13,fontWeight:500,color:"var(--color-text-secondary)",display:"flex",alignItems:"center",gap:4,marginBottom:4};
+  const sec=(label)=><div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:16,marginTop:4}}>{label}</div>;
+
+  return <div style={{border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",overflow:"hidden",marginBottom:14}}>
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"var(--color-background-secondary)",cursor:"pointer",userSelect:"none"}} onClick={()=>setOpen(!open)}>
+      <div style={{width:24,height:24,borderRadius:6,background:"var(--color-background-info)",color:"var(--color-text-info)",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{idx+1}</div>
+      <div style={{flex:1,fontSize:13,fontWeight:500}}>{opp.title||`Opportunity ${idx+1}`}</div>
+      {!isOnly&&<button onClick={e=>{e.stopPropagation();onRemove(idx);}} style={{width:24,height:24,border:"0.5px solid var(--color-border-secondary)",borderRadius:4,background:"transparent",cursor:"pointer",color:"var(--color-text-secondary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>✕</button>}
+      <span style={{fontSize:12,color:"var(--color-text-tertiary)"}}>{open?"▾":"▸"}</span>
+    </div>
+    {open&&<div style={{padding:"20px 20px 16px"}}>
+      {sec("Overview")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        <div style={{gridColumn:"1/-1"}}><label style={ls}>Title {dot}</label><input style={is} value={opp.title} onChange={e=>field("title",e.target.value)} placeholder="e.g. Grant Research Volunteer"/></div>
+        <div><label style={ls}>Category {dot}</label><select style={sel} value={opp.category} onChange={e=>field("category",e.target.value)}><option value="">Select…</option>{CATS.map(c=><option key={c}>{c}</option>)}</select></div>
+        <div><label style={ls}>Spots available</label><input style={is} type="number" min="1" value={opp.spots} onChange={e=>field("spots",e.target.value)} placeholder="Blank = unlimited"/></div>
+      </div>
+      {sec("Description")}
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:14}}>
+        <div><label style={ls}>Role summary {dot}</label><textarea style={ta} rows={2} value={opp.summary} onChange={e=>field("summary",e.target.value)} placeholder="2–3 sentences: what will this volunteer do and why?"/></div>
+        <div><label style={ls}>Key responsibilities {dot}</label><textarea style={{...ta,minHeight:88}} rows={3} value={opp.responsibilities} onChange={e=>field("responsibilities",e.target.value)} placeholder="Be specific — e.g. 'Research 10–15 grant sources per month'"/></div>
+        <div><label style={ls}>Expected impact</label><textarea style={ta} rows={2} value={opp.impact} onChange={e=>field("impact",e.target.value)} placeholder="How does this contribute to your mission?"/></div>
+      </div>
+      {sec("Requirements")}
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:14}}>
+        <div><label style={ls}>Required skills {dot}</label><textarea style={ta} rows={2} value={opp.skills} onChange={e=>field("skills",e.target.value)} placeholder="Must-have skills and experience"/></div>
+        <div><label style={ls}>Preferred skills</label><textarea style={ta} rows={2} value={opp.preferred} onChange={e=>field("preferred",e.target.value)} placeholder="Nice-to-have skills"/></div>
+        <div>
+          <label style={ls}>Tools & technology</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {TOOLS_LIST.map(t=>{
+              const active=opp.tools.includes(t);
+              return <span key={t} style={chip(active)} onClick={()=>toggleTool(t)}>
+                {active&&<span style={{width:10,height:10,borderRadius:2,background:"var(--color-text-info)",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><svg width="7" height="7" viewBox="0 0 7 7" fill="none"><path d="M1 3.5l2 2 3-3" stroke="white" strokeWidth="1.2" strokeLinecap="round"/></svg></span>}
+                {t}
+              </span>;
+            })}
+          </div>
+        </div>
+        <div><label style={ls}>Language requirements</label><input style={is} value={opp.language} onChange={e=>field("language",e.target.value)} placeholder="e.g. English fluency required"/></div>
+        <div><label style={ls}>Training provided</label><textarea style={ta} rows={2} value={opp.training} onChange={e=>field("training",e.target.value)} placeholder="Onboarding, materials, or orientation details"/></div>
+      </div>
+      {sec("Time & Commitments")}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div>
+          <label style={ls}>Weekly hours {dot}</label>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <input type="range" min={1} max={40} value={opp.hours} onChange={e=>field("hours",+e.target.value)} style={{flex:1,accentColor:"var(--color-text-info)"}}/>
+            <span style={{minWidth:72,padding:"4px 10px",borderRadius:"var(--border-radius-md)",background:"var(--color-background-info)",color:"var(--color-text-info)",fontSize:12,fontWeight:600,textAlign:"center"}}>{opp.hours} hrs/wk</span>
+          </div>
+        </div>
+        <div>
+          <label style={ls}>Scheduling flexibility {dot}</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{FLEX_LIST.map(f=>{const active=opp.flexibility===f;return <span key={f} style={chip(active)} onClick={()=>field("flexibility",active?"":f)}>{f}</span>;})}</div>
+        </div>
+        <div><label style={ls}>Meeting cadence</label><select style={sel} value={opp.meetings} onChange={e=>field("meetings",e.target.value)}><option value="">Select…</option>{MEETINGS_LIST.map(m=><option key={m}>{m}</option>)}</select></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <div><label style={ls}>Earliest start {dot}</label><input style={is} value={opp.start} onChange={e=>field("start",e.target.value)} placeholder="e.g. ASAP, May 2025"/></div>
+          <div><label style={ls}>Duration</label><input style={is} value={opp.end} onChange={e=>field("end",e.target.value)} placeholder="e.g. 3 months, Ongoing"/></div>
+        </div>
+        <div><label style={ls}>Supervision & support</label><textarea style={ta} rows={2} value={opp.supervision} onChange={e=>field("supervision",e.target.value)} placeholder="Who supervises this volunteer?"/></div>
+        <div><label style={ls}>Additional notes</label><textarea style={ta} rows={2} value={opp.notes} onChange={e=>field("notes",e.target.value)} placeholder="Confidentiality, project context, accessibility needs, etc."/></div>
+      </div>
+    </div>}
+  </div>;
+}
+
+function SubmissionForm({onSubmitted}){
+  const [name,setName]=useState("");
+  const [email,setEmail]=useState("");
+  const [dept,setDept]=useState("");
+  const [opps,setOpps]=useState([emptyOpp()]);
+  const [errors,setErrors]=useState({});
+  const [saving,setSaving]=useState(false);
+  const [done,setDone]=useState(false);
+  const [submittedTitles,setSubmittedTitles]=useState([]);
+  const [saveError,setSaveError]=useState(null);
+
+  function updateOpp(i,o){setOpps(prev=>prev.map((x,j)=>j===i?o:x));}
+  function addOpp(){setOpps(prev=>[...prev,emptyOpp()]);}
+  function removeOpp(i){setOpps(prev=>prev.filter((_,j)=>j!==i));}
+
+  function validate(){
+    const e={};
+    if(!name.trim())e.name=true;
+    if(!email.trim())e.email=true;
+    opps.forEach((o,i)=>{
+      if(!o.title.trim())e[`t${i}`]=true;
+      if(!o.category)e[`c${i}`]=true;
+      if(!o.summary.trim())e[`s${i}`]=true;
+      if(!o.responsibilities.trim())e[`r${i}`]=true;
+      if(!o.skills.trim())e[`sk${i}`]=true;
+      if(!o.start.trim())e[`st${i}`]=true;
+    });
+    setErrors(e);
+    return Object.keys(e).length===0;
+  }
+
+  async function submit(){
+    if(!validate())return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const today=new Date().toISOString().slice(0,10);
+      const saved=[];
+      for(const o of opps){
+        const rec={
+          title:o.title,submitter:name,email,dept,
+          category:o.category,status:"New",
+          hours:o.hours,flexibility:o.flexibility,
+          start:o.start,duration:o.end,
+          spots:o.spots?+o.spots:null,
+          meetings:o.meetings,summary:o.summary,
+          responsibilities:o.responsibilities,impact:o.impact,
+          skills:o.skills,preferred:o.preferred,tools:o.tools,
+          language:o.language,training:o.training,
+          supervision:o.supervision,
+          date:today,assignee:null,notes:[],history:[],
+        };
+        const created=await createRecord(toAirtable(rec));
+        saved.push({...rec,...created});
+      }
+      setSubmittedTitles(saved.map(s=>s.title));
+      onSubmitted(saved);
+      setDone(true);
+    } catch(err){
+      setSaveError(err.message||"Failed to save. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const is={width:"100%",padding:"8px 11px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none"};
+  const ls={fontSize:13,fontWeight:500,color:"var(--color-text-secondary)",display:"block",marginBottom:4};
+  const dot=<span style={{width:5,height:5,borderRadius:"50%",background:"var(--color-text-info)",display:"inline-block",marginLeft:2}}/>;
+
+  if(done)return(
+    <div style={{maxWidth:540,margin:"60px auto",textAlign:"center",padding:"0 20px"}}>
+      <div style={{width:56,height:56,borderRadius:"50%",background:"var(--color-background-success)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="var(--color-text-success)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </div>
+      <h2 style={{fontFamily:"var(--font-serif)",fontSize:"1.6rem",marginBottom:10}}>Saved to Airtable!</h2>
+      <p style={{fontSize:14,color:"var(--color-text-secondary)",lineHeight:1.6,marginBottom:20}}>
+        {submittedTitles.length===1?"This opportunity has":"These opportunities have"} been permanently saved and will appear in the coordinator dashboard.
+      </p>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginBottom:28}}>
+        {submittedTitles.map((t,i)=><span key={i} style={{padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:500,background:"var(--color-background-success)",color:"var(--color-text-success)",border:"0.5px solid var(--color-border-success)"}}>{t}</span>)}
+      </div>
+      <button onClick={()=>{setDone(false);setName("");setEmail("");setDept("");setOpps([emptyOpp()]);setErrors({});}} style={{padding:"9px 20px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",cursor:"pointer",fontSize:13,fontWeight:500,color:"var(--color-text-primary)"}}>Submit another</button>
+    </div>
+  );
+
+  return(
+    <div style={{maxWidth:700,margin:"0 auto",padding:"32px 20px 60px"}}>
+      <div style={{marginBottom:28}}>
+        <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.14em",textTransform:"uppercase",color:"var(--color-text-info)",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+          Staff submission portal
+          <span style={{flex:1,height:"0.5px",background:"var(--color-border-tertiary)",display:"block"}}/>
+        </div>
+        <h1 style={{fontFamily:"var(--font-serif)",fontSize:"clamp(1.6rem,4vw,2.4rem)",lineHeight:1.1,marginBottom:10}}>Remote Volunteer <em style={{color:"var(--color-text-info)"}}>Opportunities</em></h1>
+        <p style={{fontSize:14,color:"var(--color-text-secondary)",lineHeight:1.65,maxWidth:520}}>Fill in your info once, then add as many opportunities as your team needs. Submissions are saved permanently to Airtable.</p>
+      </div>
+
+      <div style={{background:"var(--color-background-primary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",padding:"20px 20px 16px",marginBottom:20}}>
+        <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:16}}>Submitter information</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <div>
+            <label style={ls}>Name {dot}</label>
+            <input style={{...is,border:errors.name?"1px solid var(--color-border-danger)":is.border}} value={name} onChange={e=>{setName(e.target.value);setErrors(x=>({...x,name:false}));}} placeholder="Full name"/>
+          </div>
+          <div>
+            <label style={ls}>Email {dot}</label>
+            <input style={{...is,border:errors.email?"1px solid var(--color-border-danger)":is.border}} value={email} onChange={e=>{setEmail(e.target.value);setErrors(x=>({...x,email:false}));}} placeholder="you@organization.org"/>
+          </div>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={ls}>Department / Team</label>
+            <input style={is} value={dept} onChange={e=>setDept(e.target.value)} placeholder="e.g. Communications, Programs"/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--color-text-tertiary)",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+        Volunteer opportunities
+        <span style={{flex:1,height:"0.5px",background:"var(--color-border-tertiary)",display:"block"}}/>
+      </div>
+
+      {opps.map((o,i)=><OppForm key={i} opp={o} idx={i} onChange={updateOpp} onRemove={removeOpp} isOnly={opps.length===1}/>)}
+
+      <button onClick={addOpp} style={{width:"100%",padding:13,border:"1.5px dashed var(--color-border-secondary)",borderRadius:"var(--border-radius-lg)",background:"transparent",cursor:"pointer",fontSize:13,fontWeight:500,color:"var(--color-text-secondary)",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:24}}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+        Add another opportunity
+      </button>
+
+      {Object.values(errors).some(Boolean)&&<div style={{padding:"10px 14px",borderRadius:"var(--border-radius-md)",background:"var(--color-background-danger)",border:"0.5px solid var(--color-border-danger)",color:"var(--color-text-danger)",fontSize:13,marginBottom:16}}>Please fill in all required fields (marked with a dot).</div>}
+      {saveError&&<div style={{padding:"10px 14px",borderRadius:"var(--border-radius-md)",background:"var(--color-background-danger)",border:"0.5px solid var(--color-border-danger)",color:"var(--color-text-danger)",fontSize:13,marginBottom:16}}>⚠ {saveError}</div>}
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,padding:"16px 20px",background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",border:"0.5px solid var(--color-border-tertiary)"}}>
+        <p style={{fontSize:12,color:"var(--color-text-tertiary)",lineHeight:1.5,maxWidth:340}}><strong style={{color:"var(--color-text-secondary)"}}>Dots mark required fields.</strong> Submissions are saved permanently to Airtable.</p>
+        <div style={{display:"flex",gap:8,flexShrink:0}}>
+          <button onClick={()=>{setName("");setEmail("");setDept("");setOpps([emptyOpp()]);setErrors({});}} style={{padding:"9px 16px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--color-text-secondary)"}}>Clear</button>
+          <button onClick={submit} disabled={saving} style={{padding:"9px 20px",borderRadius:"var(--border-radius-md)",border:"none",background:saving?"var(--color-background-secondary)":"var(--color-text-primary)",color:saving?"var(--color-text-secondary)":"var(--color-background-primary)",cursor:saving?"not-allowed":"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+            {saving?<><Spinner/> Saving…</>:<>Submit all <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5h10M7 2l4.5 4.5L7 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function Dashboard({submissions,setSubmissions}){
+  const [filter,setFilter]=useState("all");
+  const [search,setSearch]=useState("");
+  const [view,setView]=useState("table");
+  const [drawer,setDrawer]=useState(null);
+  const [drawerTab,setDrawerTab]=useState("details");
+  const [noteInput,setNoteInput]=useState("");
+  const [manageStatus,setManageStatus]=useState("");
+  const [manageAssignee,setManageAssignee]=useState("");
+  const [toast,setToast]=useState(null); // {msg, type: 'success'|'error'|'info'}
+  const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const toastTimer=useRef(null);
+
+  function showToast(msg,type="info"){setToast({msg,type});clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(null),3200);}
+
+  useEffect(()=>{
+    loadAll()
+      .then(recs=>{setSubmissions(recs);setLoading(false);})
+      .catch(err=>{setLoadError(err.message);setLoading(false);});
+  },[]);
+
+  function getFiltered(){
+    return submissions.filter(s=>{
+      const ms=filter==="all"||s.status===filter;
+      const q=search.toLowerCase();
+      const mq=!q||s.title.toLowerCase().includes(q)||s.submitter.toLowerCase().includes(q)||s.category.toLowerCase().includes(q)||(s.dept||"").toLowerCase().includes(q);
+      return ms&&mq;
+    });
+  }
+
+  function updateLocal(id,patch){
+    setSubmissions(prev=>prev.map(s=>s.id!==id?s:{...s,...patch}));
+    if(drawer?.id===id)setDrawer(prev=>({...prev,...patch}));
+  }
+
+  async function updateSub(id,patch){
+    const sub=submissions.find(s=>s.id===id);
+    if(!sub)return false;
+    updateLocal(id,patch);
+    try{
+      await updateRecord(sub.airtableId||sub.id, patchFields(patch));
+      return true;
+    }catch(err){
+      showToast("⚠ Airtable sync failed: "+err.message,"error");
+      return false;
+    }
+  }
+
+  function openDrawer(s){setDrawer(s);setDrawerTab("details");setManageStatus(s.status);setManageAssignee(s.assignee||"");setNoteInput("");}
+
+  async function saveManage(){
+    if(!drawer)return;
+    setSaving(true);
+    const history=[...(drawer.history||[])];
+    if(manageStatus!==drawer.status)history.unshift({action:`Status → ${manageStatus}`,who:"KC",time:nowShort()});
+    if((manageAssignee||null)!==drawer.assignee)history.unshift({action:`Assigned to ${manageAssignee||"Unassigned"}`,who:"KC",time:nowShort()});
+    const ok=await updateSub(drawer.id,{status:manageStatus,assignee:manageAssignee||null,history});
+    setSaving(false);
+    if(ok) showToast(`✓ Saved to Airtable${manageStatus!==drawer.status?` — status set to ${manageStatus}`:""}`, "success");
+  }
+
+  async function addNote(){
+    if(!noteInput.trim()||!drawer)return;
+    const note={author:"KC",date:nowShort(),text:noteInput.trim()};
+    const notes=[note,...(drawer.notes||[])];
+    const history=[{action:"Note added",who:"KC",time:nowShort()},...(drawer.history||[])];
+    const ok=await updateSub(drawer.id,{notes,history});
+    setNoteInput("");
+    if(ok) showToast("✓ Note saved to Airtable","success");
+  }
+
+  async function quickStatus(id,status,e){
+    e.stopPropagation();
+    const s=submissions.find(x=>x.id===id);
+    if(!s)return;
+    const ok=await updateSub(id,{status,history:[{action:`Status → ${status}`,who:"KC",time:nowShort()},...(s.history||[])]});
+    if(ok) showToast(`✓ "${s.title}" → ${status}`,"success");
+  }
+
+  function exportCSV(){
+    const rows=getFiltered();
+    const h=["Title","Submitter","Email","Dept","Category","Status","Assigned To","Hrs/wk","Spots","Start","Duration","Flexibility","Meetings","Date"];
+    const csv=[h,...rows.map(s=>[s.title,s.submitter,s.email,s.dept,s.category,s.status,s.assignee||"",s.hours,s.spots||"Unlimited",s.start,s.duration,s.flexibility,s.meetings,s.date])].map(r=>r.map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="volunteer-submissions.csv";a.click();
+    showToast("CSV exported");
+  }
+
+  const rows=getFiltered();
+  const counts={};STATUS_LIST.forEach(s=>counts[s]=submissions.filter(x=>x.status===s).length);
+  const cs={padding:"12px 14px",fontSize:13,verticalAlign:"middle"};
+  const ths={padding:"10px 14px",fontSize:10,fontWeight:600,letterSpacing:"0.09em",textTransform:"uppercase",color:"var(--color-text-tertiary)",textAlign:"left",borderBottom:"0.5px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",whiteSpace:"nowrap"};
+  const sels={width:"100%",padding:"8px 11px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none",appearance:"none",cursor:"pointer"};
+
+  if(loading)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:14,color:"var(--color-text-secondary)"}}>
+      <Spinner/>
+      <p style={{fontSize:14}}>Loading submissions from Airtable…</p>
+    </div>
+  );
+
+  if(loadError)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:12,color:"var(--color-text-danger)",padding:24,textAlign:"center"}}>
+      <div style={{fontSize:28}}>⚠</div>
+      <p style={{fontSize:14,fontWeight:500}}>Could not connect to Airtable</p>
+      <p style={{fontSize:13,color:"var(--color-text-secondary)",maxWidth:400}}>{loadError}</p>
+      <button onClick={()=>{setLoading(true);setLoadError(null);loadAll().then(r=>{setSubmissions(r);setLoading(false);}).catch(e=>{setLoadError(e.message);setLoading(false);});}} style={{padding:"8px 18px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:13}}>Retry</button>
+    </div>
+  );
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
+      {/* Stats */}
+      <div style={{display:"flex",borderBottom:"0.5px solid var(--color-border-tertiary)",flexShrink:0,overflowX:"auto"}}>
+        {[["Total",submissions.length,"var(--color-text-info)","all"],["New",counts.New,"#5B9EE8","New"],["Under Review",counts["Under Review"],"#E8C95B","Under Review"],["Active",counts.Active,"#5DC490","Active"],["Assigned",counts.Assigned,"#A07AE8","Assigned"],["Closed",counts.Closed,"var(--color-text-tertiary)","Closed"],["Hidden",counts.Hidden,"#B07A3A","Hidden"],["Archived",counts.Archived,"#6A6A7A","Archived"]].map(([l,n,c,f])=>(
+          <div key={l} onClick={()=>setFilter(f)} style={{flex:1,padding:"12px 16px",borderRight:"0.5px solid var(--color-border-tertiary)",cursor:"pointer",minWidth:80,background:filter===f?"var(--color-background-secondary)":"transparent"}}>
+            <div style={{fontFamily:"var(--font-serif)",fontSize:"1.5rem",color:c,lineHeight:1}}>{n}</div>
+            <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:3}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderBottom:"0.5px solid var(--color-border-tertiary)",flexShrink:0,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:4,background:"var(--color-background-secondary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-md)",padding:3,flexWrap:"wrap"}}>
+          {["All",...STATUS_LIST].map(s=>{const active=(s==="All"&&filter==="all")||(s!=="All"&&filter===s);return <button key={s} onClick={()=>setFilter(s==="All"?"all":s)} style={{padding:"5px 10px",borderRadius:5,fontSize:12,cursor:"pointer",border:"none",background:active?"var(--color-background-primary)":"transparent",color:active?"var(--color-text-primary)":"var(--color-text-secondary)",fontWeight:active?500:400}}>{s}</button>;})}
+        </div>
+        <div style={{position:"relative",flex:1,minWidth:160}}>
+          <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:"var(--color-text-tertiary)",fontSize:14,pointerEvents:"none"}}>⌕</span>
+          <input style={{width:"100%",padding:"7px 11px 7px 28px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none"}} placeholder="Search title, submitter, category…" value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <div style={{display:"flex",gap:4}}>
+          {[["☰","table"],["⊞","kanban"]].map(([icon,v])=><button key={v} onClick={()=>setView(v)} style={{width:30,height:30,borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:view===v?"var(--color-background-secondary)":"transparent",cursor:"pointer",color:view===v?"var(--color-text-primary)":"var(--color-text-tertiary)",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{icon}</button>)}
+        </div>
+        <button onClick={exportCSV} style={{padding:"7px 13px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:12,color:"var(--color-text-secondary)"}}>↓ CSV</button>
+        <button onClick={()=>{setLoading(true);loadAll().then(r=>{setSubmissions(r);setLoading(false);showToast("Refreshed from Airtable");}).catch(e=>{setLoadError(e.message);setLoading(false);});}} style={{padding:"7px 13px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:12,color:"var(--color-text-secondary)"}}>↺ Refresh</button>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:16}}>
+        {!rows.length&&<div style={{textAlign:"center",padding:"50px 20px",color:"var(--color-text-tertiary)"}}>
+          <div style={{fontSize:28,marginBottom:10}}>📭</div>
+          <p style={{fontSize:14}}>No submissions match your filters.</p>
+        </div>}
+
+        {view==="table"&&rows.length>0&&<div style={{border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr>
+              <th style={ths}>Opportunity</th>
+              <th style={ths}>Status</th>
+              <th style={ths}>Category</th>
+              <th style={ths}>Assigned to</th>
+              <th style={ths}>Hrs/wk</th>
+              <th style={ths}>Submitted</th>
+              <th style={ths}/>
+            </tr></thead>
+            <tbody>
+              {rows.map(s=><tr key={s.id} onClick={()=>openDrawer(s)} style={{borderBottom:"0.5px solid var(--color-border-tertiary)",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="var(--color-background-secondary)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                <td style={cs}><div style={{fontWeight:500,fontSize:13}}>{s.title}</div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2}}>{s.submitter}{s.dept?` · ${s.dept}`:""}</div></td>
+                <td style={cs}><Badge status={s.status}/></td>
+                <td style={cs}><span style={{fontSize:11,padding:"2px 7px",borderRadius:4,background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",border:"0.5px solid var(--color-border-tertiary)"}}>{s.category}</span></td>
+                <td style={cs}>{s.assignee?<span style={{fontSize:12,color:"var(--color-text-secondary)"}}>{s.assignee}</span>:<span style={{fontSize:12,color:"var(--color-text-tertiary)",fontStyle:"italic"}}>Unassigned</span>}</td>
+                <td style={{...cs,fontSize:12,color:"var(--color-text-secondary)"}}>{s.hours} hrs</td>
+                <td style={{...cs,fontSize:12,color:"var(--color-text-tertiary)",whiteSpace:"nowrap"}}>{s.date}</td>
+                <td style={cs} onClick={e=>e.stopPropagation()}>
+                  <div style={{display:"flex",gap:5}}>
+                    <button onClick={e=>quickStatus(s.id,"Under Review",e)} title="Mark Under Review" style={{padding:"4px 7px",borderRadius:4,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:11,color:"var(--color-text-secondary)"}}>◎</button>
+                    <button onClick={e=>quickStatus(s.id,"Active",e)} title="Mark Active" style={{padding:"4px 7px",borderRadius:4,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:11,color:"var(--color-text-secondary)"}}>▶</button>
+                    <button onClick={e=>quickStatus(s.id,"Hidden",e)} title="Hide (removes from volunteer board)" style={{padding:"4px 7px",borderRadius:4,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:11,color:"#B07A3A"}}>⊘</button>
+                    <button onClick={e=>quickStatus(s.id,"Archived",e)} title="Archive (permanently retired)" style={{padding:"4px 7px",borderRadius:4,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:11,color:"#6A6A7A"}}>⬚</button>
+                  </div>
+                </td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>}
+
+        {view==="kanban"&&rows.length>0&&<div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:8}}>
+          {STATUS_LIST.map(status=>{
+            const cards=rows.filter(s=>s.status===status);
+            const c=STATUS_COLORS[status];
+            return <div key={status} style={{minWidth:210,maxWidth:230,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,padding:"6px 2px",marginBottom:8}}>
+                <span style={{width:7,height:7,borderRadius:"50%",background:c,flexShrink:0}}/>
+                <span style={{fontSize:11,fontWeight:600,color:"var(--color-text-secondary)",textTransform:"uppercase",letterSpacing:"0.05em"}}>{status}</span>
+                <span style={{marginLeft:"auto",fontSize:11,color:"var(--color-text-tertiary)",background:"var(--color-background-secondary)",padding:"1px 6px",borderRadius:10}}>{cards.length}</span>
+              </div>
+              {cards.map(s=><div key={s.id} onClick={()=>openDrawer(s)} style={{background:"var(--color-background-primary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",padding:13,marginBottom:10,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.borderColor="var(--color-border-secondary)"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--color-border-tertiary)"}>
+                <div style={{fontSize:13,fontWeight:500,marginBottom:8,lineHeight:1.35}}>{s.title}</div>
+                <div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,padding:"2px 6px",borderRadius:3,background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",border:"0.5px solid var(--color-border-tertiary)"}}>{s.category}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"var(--color-text-tertiary)"}}>{s.dept||s.submitter}</span>
+                  <span style={{fontSize:11,color:"var(--color-text-secondary)",background:"var(--color-background-secondary)",padding:"2px 7px",borderRadius:10}}>{s.hours} hrs/wk</span>
+                </div>
+              </div>)}
+              {!cards.length&&<div style={{textAlign:"center",padding:"16px 8px",color:"var(--color-text-tertiary)",fontSize:12}}>No items</div>}
+            </div>;
+          })}
+        </div>}
+      </div>
+
+      {/* Drawer */}
+      {drawer&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:200,display:"flex",justifyContent:"flex-end"}} onClick={()=>setDrawer(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{width:480,maxWidth:"100vw",background:"var(--color-background-primary)",borderLeft:"0.5px solid var(--color-border-secondary)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
+          <div style={{padding:"16px 18px 12px",borderBottom:"0.5px solid var(--color-border-tertiary)",position:"sticky",top:0,background:"var(--color-background-primary)",zIndex:1}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:8}}>
+              <button onClick={()=>setDrawer(null)} style={{width:26,height:26,borderRadius:5,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",color:"var(--color-text-secondary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,marginTop:2}}>✕</button>
+              <div style={{fontFamily:"var(--font-serif)",fontSize:"1.15rem",lineHeight:1.25,flex:1}}>{drawer.title}</div>
+            </div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}><Badge status={drawer.status}/><span style={{fontSize:11,padding:"2px 8px",borderRadius:4,background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",border:"0.5px solid var(--color-border-tertiary)"}}>{drawer.category}</span></div>
+          </div>
+          <div style={{display:"flex",borderBottom:"0.5px solid var(--color-border-tertiary)",flexShrink:0}}>
+            {["details","manage","notes","history"].map(t=><div key={t} onClick={()=>setDrawerTab(t)} style={{padding:"10px 16px",fontSize:13,cursor:"pointer",borderBottom:`2px solid ${drawerTab===t?"var(--color-text-primary)":"transparent"}`,color:drawerTab===t?"var(--color-text-primary)":"var(--color-text-secondary)",fontWeight:drawerTab===t?500:400,textTransform:"capitalize"}}>{t}</div>)}
+          </div>
+          <div style={{padding:18,flex:1,overflowY:"auto"}}>
+            {drawerTab==="details"&&<>
+              {[["Submitted by",[["Name",drawer.submitter],["Email",drawer.email],["Department",drawer.dept||"—"],["Date",drawer.date]]],["Description",[["Summary",drawer.summary],["Responsibilities",drawer.responsibilities],drawer.impact&&["Impact",drawer.impact]].filter(Boolean)],["Requirements",[["Required skills",drawer.skills],drawer.preferred&&["Preferred skills",drawer.preferred],["Tools",(drawer.tools||[]).join(", ")||"—"],drawer.training&&["Training",drawer.training]].filter(Boolean)],["Commitments",[["Hours/week",`${drawer.hours} hrs`],["Spots",drawer.spots||"Unlimited"],["Start",drawer.start||"—"],["Duration",drawer.duration||"—"],["Flexibility",drawer.flexibility||"—"],["Meetings",drawer.meetings||"—"]]]].map(([sec,fields])=><div key={sec} style={{marginBottom:20}}>
+                <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:12}}>{sec}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  {fields.map(([l,v])=><div key={l} style={(l==="Summary"||l==="Responsibilities"||l==="Required skills"||l==="Preferred skills"||l==="Training"||l==="Impact")?{gridColumn:"1/-1"}:{}}>
+                    <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3,fontWeight:500}}>{l}</div>
+                    <div style={{fontSize:13,color:"var(--color-text-secondary)",lineHeight:1.55}}>{v||"—"}</div>
+                  </div>)}
+                </div>
+              </div>)}
+            </>}
+            {drawerTab==="manage"&&<div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div><label style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)",display:"block",marginBottom:6}}>Status</label>
+                <select style={sels} value={manageStatus} onChange={e=>setManageStatus(e.target.value)}>{STATUS_LIST.map(s=><option key={s}>{s}</option>)}</select>
+              </div>
+              <div><label style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)",display:"block",marginBottom:6}}>Assigned to</label>
+                <select style={sels} value={manageAssignee} onChange={e=>setManageAssignee(e.target.value)}>
+                  <option value="">Unassigned</option>
+                  {TEAM.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div style={{display:"flex",gap:8,paddingTop:4}}>
+                <button onClick={saveManage} disabled={saving} style={{padding:"9px 20px",borderRadius:"var(--border-radius-md)",border:"none",background:saving?"var(--color-background-secondary)":"var(--color-text-primary)",color:saving?"var(--color-text-secondary)":"var(--color-background-primary)",cursor:saving?"not-allowed":"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
+                  {saving?<><Spinner/> Saving…</>:"Save to Airtable"}
+                </button>
+                <button onClick={()=>setDrawer(null)} style={{padding:"9px 16px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:13,color:"var(--color-text-secondary)"}}>Cancel</button>
+              </div>
+
+              {/* Hide / Archive section */}
+              <div style={{borderTop:"0.5px solid var(--color-border-tertiary)",paddingTop:16,display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--color-text-tertiary)",marginBottom:2}}>Visibility</div>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={async()=>{
+                    const h=[{action:"Opportunity hidden from volunteer board",who:"KC",time:nowShort()},...(drawer.history||[])];
+                    const ok=await updateSub(drawer.id,{status:"Hidden",history:h});
+                    if(ok) showToast("✓ Hidden from volunteer board","success");
+                  }} style={{flex:1,padding:"10px 14px",borderRadius:"var(--border-radius-md)",border:"1px solid #B07A3A44",background:"#B07A3A11",cursor:"pointer",fontSize:13,fontWeight:500,color:"#B07A3A",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+                    <span style={{fontSize:16}}>⊘</span> Hide
+                  </button>
+                  <button onClick={async()=>{
+                    const h=[{action:"Opportunity archived",who:"KC",time:nowShort()},...(drawer.history||[])];
+                    const ok=await updateSub(drawer.id,{status:"Archived",history:h});
+                    if(ok) showToast("✓ Opportunity archived","success");
+                  }} style={{flex:1,padding:"10px 14px",borderRadius:"var(--border-radius-md)",border:"1px solid #6A6A7A44",background:"#6A6A7A11",cursor:"pointer",fontSize:13,fontWeight:500,color:"#6A6A7A",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+                    <span style={{fontSize:16}}>⬚</span> Archive
+                  </button>
+                </div>
+                <div style={{fontSize:11,color:"var(--color-text-tertiary)",lineHeight:1.6,padding:"8px 10px",borderRadius:"var(--border-radius-md)",background:"var(--color-background-secondary)"}}>
+                  <strong style={{color:"var(--color-text-secondary)"}}>Hide</strong> removes the role from the volunteer board but keeps it in the dashboard for reference. <strong style={{color:"var(--color-text-secondary)"}}>Archive</strong> permanently retires it — use this when the need no longer exists. Both can be reversed by changing the status above.
+                </div>
+              </div>
+            </div>}
+            {drawerTab==="notes"&&<>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
+                {(drawer.notes||[]).length===0&&<p style={{fontSize:13,color:"var(--color-text-tertiary)",fontStyle:"italic"}}>No notes yet.</p>}
+                {(drawer.notes||[]).map((n,i)=><div key={i} style={{background:"var(--color-background-secondary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-md)",padding:"10px 12px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,fontWeight:600,color:"var(--color-text-info)"}}>{n.author}</span><span style={{fontSize:11,color:"var(--color-text-tertiary)"}}>{n.date}</span></div>
+                  <div style={{fontSize:13,color:"var(--color-text-secondary)",lineHeight:1.55}}>{n.text}</div>
+                </div>)}
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+                <textarea style={{flex:1,padding:"8px 11px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none",resize:"vertical",minHeight:70,lineHeight:1.6}} placeholder="Add a coordinator note…" value={noteInput} onChange={e=>setNoteInput(e.target.value)}/>
+                <button onClick={addNote} style={{padding:"9px 16px",borderRadius:"var(--border-radius-md)",border:"none",background:"var(--color-text-primary)",color:"var(--color-background-primary)",cursor:"pointer",fontSize:13,fontWeight:600,whiteSpace:"nowrap"}}>Save note</button>
+              </div>
+            </>}
+            {drawerTab==="history"&&<div>
+              {(drawer.history||[]).length===0&&<p style={{fontSize:13,color:"var(--color-text-tertiary)",fontStyle:"italic"}}>No history yet.</p>}
+              {(drawer.history||[]).map((h,i)=><div key={i} style={{display:"flex",gap:12,paddingBottom:12,borderBottom:i<(drawer.history||[]).length-1?"0.5px solid var(--color-border-tertiary)":"none",marginBottom:i<(drawer.history||[]).length-1?12:0}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:4}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:i===0?"var(--color-text-primary)":"var(--color-border-secondary)",flexShrink:0}}/>
+                  {i<(drawer.history||[]).length-1&&<div style={{width:1,flex:1,background:"var(--color-border-tertiary)",marginTop:4}}/>}
+                </div>
+                <div><div style={{fontSize:13,lineHeight:1.4}}>{h.action} <span style={{color:"var(--color-text-tertiary)"}}>by {h.who}</span></div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2}}>{h.time}</div></div>
+              </div>)}
+            </div>}
+          </div>
+        </div>
+      </div>}
+
+      {toast&&<div style={{
+        position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",
+        background:toast.type==="success"?"var(--color-background-success)":toast.type==="error"?"var(--color-background-danger)":"var(--color-background-primary)",
+        border:`0.5px solid ${toast.type==="success"?"var(--color-border-success)":toast.type==="error"?"var(--color-border-danger)":"var(--color-border-secondary)"}`,
+        color:toast.type==="success"?"var(--color-text-success)":toast.type==="error"?"var(--color-text-danger)":"var(--color-text-primary)",
+        borderRadius:"var(--border-radius-md)",padding:"10px 18px",fontSize:13,zIndex:999,
+        boxShadow:"0 4px 20px rgba(0,0,0,0.15)",whiteSpace:"nowrap",pointerEvents:"none",
+        display:"flex",alignItems:"center",gap:8,fontWeight:toast.type!=="info"?500:400
+      }}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+// ─── APPLICANTS ───────────────────────────────────────────────────────────────
+const APP_STATUS_COLORS={"New":"#5B9EE8","Contacted":"#E8C95B","Accepted":"#5DC490","Declined":"#E86070","Waitlisted":"#A07AE8"};
+const APP_STATUS_LIST=["New","Contacted","Accepted","Declined","Waitlisted"];
+
+function ApplicantBadge({status}){
+  const c=APP_STATUS_COLORS[status]||"#888";
+  return <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:600,background:c+"22",color:c,border:`1px solid ${c}44`}}>
+    <span style={{width:5,height:5,borderRadius:"50%",background:c,display:"inline-block"}}/>
+    {status||"New"}
+  </span>;
+}
+
+function Applicants(){
+  const [applicants,setApplicants]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState(null);
+  const [search,setSearch]=useState("");
+  const [filterOpp,setFilterOpp]=useState("all");
+  const [filterStatus,setFilterStatus]=useState("all");
+  const [drawer,setDrawer]=useState(null);
+  const [editStatus,setEditStatus]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  const toastTimer=useRef(null);
+
+  function showToast(msg,type="info"){setToast({msg,type});clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(null),3200);}
+
+  async function loadApplicants(){
+    setLoading(true);setLoadError(null);
+    try{
+      let records=[],offset=null;
+      do{
+        const url=APP_URL+"?pageSize=100"+(offset?`&offset=${offset}`:"");
+        const data=await atFetch(url);
+        records=[...records,...(data.records||[])];
+        offset=data.offset||null;
+      }while(offset);
+      setApplicants(records.map(r=>({
+        id:r.id,
+        firstName:   r.fields["First Name"]          ||"",
+        lastName:    r.fields["Last Name"]            ||"",
+        email:       r.fields["Email"]                ||"",
+        oppTitle:    r.fields["Opportunity Title"]    ||"",
+        oppId:       r.fields["Opportunity ID"]       ||"",
+        dept:        r.fields["Department"]           ||"",
+        category:    r.fields["Category"]             ||"",
+        leadName:    r.fields["Lead Name"]            ||"",
+        leadEmail:   r.fields["Lead Email"]           ||"",
+        why:         r.fields["Why Interested"]       ||"",
+        experience:  r.fields["Relevant Experience"]  ||"",
+        status:      r.fields["Status"]               ||"New",
+        date:        r.fields["Submitted Date"]       ||"",
+      })).sort((a,b)=>b.date.localeCompare(a.date)));
+      setLoading(false);
+    }catch(e){
+      if(e.message.includes("404")||e.message.includes("Could not find")){
+        setApplicants([]);setLoading(false);
+      } else {
+        setLoadError(e.message);setLoading(false);
+      }
+    }
+  }
+
+  useEffect(()=>{loadApplicants();},[]);
+
+  async function updateAppStatus(id,status){
+    setSaving(true);
+    try{
+      await atFetch(`${APP_URL}/${id}`,{method:"PATCH",body:JSON.stringify({fields:{"Status":status}})});
+      setApplicants(prev=>prev.map(a=>a.id===id?{...a,status}:a));
+      if(drawer?.id===id)setDrawer(prev=>({...prev,status}));
+      showToast(`✓ Status updated to ${status} in Airtable`,"success");
+    }catch(e){showToast("⚠ Airtable sync failed: "+e.message,"error");}
+    setSaving(false);
+  }
+
+  const oppTitles=[...new Set(applicants.map(a=>a.oppTitle).filter(Boolean))].sort();
+  const counts={};APP_STATUS_LIST.forEach(s=>counts[s]=applicants.filter(a=>a.status===s).length);
+
+  const filtered=applicants.filter(a=>{
+    const ms=filterStatus==="all"||a.status===filterStatus;
+    const mo=filterOpp==="all"||a.oppTitle===filterOpp;
+    const q=search.toLowerCase();
+    const mq=!q||(a.firstName+" "+a.lastName).toLowerCase().includes(q)||a.email.toLowerCase().includes(q)||a.oppTitle.toLowerCase().includes(q)||a.dept.toLowerCase().includes(q);
+    return ms&&mo&&mq;
+  });
+
+  const cs={padding:"12px 14px",fontSize:13,verticalAlign:"middle"};
+  const ths={padding:"10px 14px",fontSize:10,fontWeight:600,letterSpacing:"0.09em",textTransform:"uppercase",color:"var(--color-text-tertiary)",textAlign:"left",borderBottom:"0.5px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",whiteSpace:"nowrap"};
+  const sels={width:"100%",padding:"8px 11px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none",appearance:"none",cursor:"pointer"};
+
+  if(loading)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:14,color:"var(--color-text-secondary)"}}>
+      <Spinner/><p style={{fontSize:14}}>Loading applicants from Airtable…</p>
+    </div>
+  );
+
+  if(loadError)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:12,color:"var(--color-text-danger)",padding:24,textAlign:"center"}}>
+      <div style={{fontSize:28}}>⚠</div>
+      <p style={{fontSize:14,fontWeight:500}}>Could not load applicants</p>
+      <p style={{fontSize:13,color:"var(--color-text-secondary)",maxWidth:400}}>{loadError}</p>
+      <button onClick={loadApplicants} style={{padding:"8px 18px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:13}}>Retry</button>
+    </div>
+  );
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:0,position:"relative"}}>
+
+      {/* Stats strip */}
+      <div style={{display:"flex",borderBottom:"0.5px solid var(--color-border-tertiary)",flexShrink:0,overflowX:"auto"}}>
+        {[["Total",applicants.length,"var(--color-text-info)"],["New",counts.New,"#5B9EE8"],["Contacted",counts.Contacted,"#E8C95B"],["Accepted",counts.Accepted,"#5DC490"],["Declined",counts.Declined,"#E86070"],["Waitlisted",counts.Waitlisted,"#A07AE8"]].map(([l,n,c])=>(
+          <div key={l} onClick={()=>setFilterStatus(l==="Total"?"all":l)} style={{flex:1,padding:"12px 16px",borderRight:"0.5px solid var(--color-border-tertiary)",cursor:"pointer",minWidth:80,background:(filterStatus===l||(l==="Total"&&filterStatus==="all"))?"var(--color-background-secondary)":"transparent"}}>
+            <div style={{fontFamily:"var(--font-serif)",fontSize:"1.5rem",color:c,lineHeight:1}}>{n}</div>
+            <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:3}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderBottom:"0.5px solid var(--color-border-tertiary)",flexShrink:0,flexWrap:"wrap"}}>
+        <div style={{position:"relative",flex:1,minWidth:160}}>
+          <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:"var(--color-text-tertiary)",fontSize:14,pointerEvents:"none"}}>⌕</span>
+          <input style={{width:"100%",padding:"7px 11px 7px 28px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"var(--color-background-primary)",color:"var(--color-text-primary)",fontSize:13,outline:"none"}} placeholder="Search name, email, or opportunity…" value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        {/* Filter by opportunity */}
+        <div style={{position:"relative",minWidth:180}}>
+          <select style={{...sels,paddingRight:28,backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%23888' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,backgroundRepeat:"no-repeat",backgroundPosition:"right 10px center"}} value={filterOpp} onChange={e=>setFilterOpp(e.target.value)}>
+            <option value="all">All opportunities</option>
+            {oppTitles.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        <button onClick={loadApplicants} style={{padding:"7px 13px",borderRadius:"var(--border-radius-md)",border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:12,color:"var(--color-text-secondary)"}}>↺ Refresh</button>
+      </div>
+
+      {/* Table */}
+      <div style={{flex:1,overflowY:"auto",padding:16}}>
+        {!filtered.length&&(
+          <div style={{textAlign:"center",padding:"50px 20px",color:"var(--color-text-tertiary)"}}>
+            <div style={{fontSize:28,marginBottom:10}}>{applicants.length===0?"📭":"🔍"}</div>
+            <p style={{fontSize:14}}>{applicants.length===0?"No applicants yet — they'll appear here once volunteers submit interest via the volunteer board.":"No applicants match your filters."}</p>
+          </div>
+        )}
+
+        {filtered.length>0&&<div style={{border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr>
+              <th style={ths}>Applicant</th>
+              <th style={ths}>Opportunity</th>
+              <th style={ths}>Lead</th>
+              <th style={ths}>Status</th>
+              <th style={ths}>Applied</th>
+              <th style={ths}/>
+            </tr></thead>
+            <tbody>
+              {filtered.map(a=>(
+                <tr key={a.id} onClick={()=>{setDrawer(a);setEditStatus(a.status);}} style={{borderBottom:"0.5px solid var(--color-border-tertiary)",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="var(--color-background-secondary)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <td style={cs}>
+                    <div style={{fontWeight:500,fontSize:13}}>{a.firstName} {a.lastName}</div>
+                    <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2}}>{a.email}</div>
+                  </td>
+                  <td style={cs}>
+                    <div style={{fontSize:13,color:"var(--color-text-primary)"}}>{a.oppTitle}</div>
+                    <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2}}>{a.dept}</div>
+                  </td>
+                  <td style={cs}>
+                    <div style={{fontSize:12,color:"var(--color-text-secondary)"}}>{a.leadName}</div>
+                    <div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2}}>{a.leadEmail}</div>
+                  </td>
+                  <td style={cs}><ApplicantBadge status={a.status}/></td>
+                  <td style={{...cs,fontSize:12,color:"var(--color-text-tertiary)",whiteSpace:"nowrap"}}>{a.date}</td>
+                  <td style={cs} onClick={e=>e.stopPropagation()}>
+                    <div style={{display:"flex",gap:5}}>
+                      {["Contacted","Accepted"].map(s=>(
+                        <button key={s} onClick={()=>updateAppStatus(a.id,s)} title={`Mark ${s}`} style={{padding:"4px 7px",borderRadius:4,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",fontSize:11,color:"var(--color-text-secondary)"}}>
+                          {s==="Contacted"?"✉":"✓"}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>}
+      </div>
+
+      {/* Applicant Drawer */}
+      {drawer&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:200,display:"flex",justifyContent:"flex-end"}} onClick={()=>setDrawer(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{width:480,maxWidth:"100vw",background:"var(--color-background-primary)",borderLeft:"0.5px solid var(--color-border-secondary)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
+
+          {/* Header */}
+          <div style={{padding:"16px 18px 14px",borderBottom:"0.5px solid var(--color-border-tertiary)",position:"sticky",top:0,background:"var(--color-background-primary)",zIndex:1}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
+              <button onClick={()=>setDrawer(null)} style={{width:26,height:26,borderRadius:5,border:"0.5px solid var(--color-border-secondary)",background:"transparent",cursor:"pointer",color:"var(--color-text-secondary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,marginTop:2}}>✕</button>
+              <div>
+                <div style={{fontFamily:"var(--font-serif)",fontSize:"1.2rem",lineHeight:1.2,marginBottom:4}}>{drawer.firstName} {drawer.lastName}</div>
+                <div style={{fontSize:12,color:"var(--color-text-tertiary)"}}>{drawer.email}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+              <ApplicantBadge status={drawer.status}/>
+              <span style={{fontSize:11,padding:"2px 8px",borderRadius:4,background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",border:"0.5px solid var(--color-border-tertiary)"}}>{drawer.category}</span>
+            </div>
+          </div>
+
+          <div style={{padding:18,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:20}}>
+
+            {/* Opportunity */}
+            <div>
+              <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:12}}>Applied For</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3}}>Opportunity</div><div style={{fontSize:13,color:"var(--color-text-primary)",fontWeight:500}}>{drawer.oppTitle}</div></div>
+                <div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3}}>Department</div><div style={{fontSize:13,color:"var(--color-text-secondary)"}}>{drawer.dept||"—"}</div></div>
+                <div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3}}>Lead</div><div style={{fontSize:13,color:"var(--color-text-secondary)"}}>{drawer.leadName}</div></div>
+                <div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3}}>Lead Email</div><div style={{fontSize:13,color:"var(--color-text-info)"}}>{drawer.leadEmail}</div></div>
+                <div><div style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:3}}>Applied</div><div style={{fontSize:13,color:"var(--color-text-secondary)"}}>{drawer.date||"—"}</div></div>
+              </div>
+            </div>
+
+            {/* Why interested */}
+            {drawer.why&&<div>
+              <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:12}}>Why Interested</div>
+              <p style={{fontSize:13,color:"var(--color-text-secondary)",lineHeight:1.65}}>{drawer.why}</p>
+            </div>}
+
+            {/* Experience */}
+            {drawer.experience&&<div>
+              <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--color-text-tertiary)",paddingBottom:8,borderBottom:"0.5px solid var(--color-border-tertiary)",marginBottom:12}}>Relevant Experience</div>
+              <p style={{fontSize:13,color:"var(--color-text-secondary)",lineHeight:1.65}}>{drawer.experience}</p>
+            </div>}
+
+            {/* Update status */}
+            <div style={{background:"var(--color-background-secondary)",borderRadius:"var(--border-radius-lg)",padding:16}}>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--color-text-tertiary)",marginBottom:12}}>Update Status</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:14}}>
+                {APP_STATUS_LIST.map(s=>{
+                  const c=APP_STATUS_COLORS[s];
+                  const active=editStatus===s;
+                  return <button key={s} onClick={()=>setEditStatus(s)} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?c:c+"44"}`,background:active?c+"22":"transparent",color:active?c:"var(--color-text-secondary)",fontSize:12,fontWeight:active?600:400,cursor:"pointer"}}>
+                    {s}
+                  </button>;
+                })}
+              </div>
+              <button onClick={async()=>{await updateAppStatus(drawer.id,editStatus);}} disabled={saving||editStatus===drawer.status} style={{padding:"9px 18px",borderRadius:"var(--border-radius-md)",border:"none",background:editStatus===drawer.status?"var(--color-background-tertiary)":"var(--color-text-primary)",color:editStatus===drawer.status?"var(--color-text-tertiary)":"var(--color-background-primary)",cursor:editStatus===drawer.status?"not-allowed":"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
+                {saving?<><Spinner/> Saving…</>:"Save to Airtable"}
+              </button>
+            </div>
+
+            {/* Quick contact */}
+            <div style={{border:"0.5px solid var(--color-border-tertiary)",borderRadius:"var(--border-radius-lg)",padding:14}}>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--color-text-tertiary)",marginBottom:10}}>Quick Contact</div>
+              <a href={`mailto:${drawer.email}?subject=Re: ${encodeURIComponent(drawer.oppTitle)} Volunteer Opportunity&body=Hi ${encodeURIComponent(drawer.firstName)},%0A%0AThank you for your interest in the ${encodeURIComponent(drawer.oppTitle)} role.`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,padding:"9px 16px",borderRadius:"var(--border-radius-md)",background:"var(--color-background-info)",color:"var(--color-text-info)",border:"0.5px solid var(--color-border-info)",fontSize:13,fontWeight:500,textDecoration:"none"}}>
+                ✉ Email {drawer.firstName}
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </div>}
+
+      {toast&&<div style={{
+        position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",
+        background:toast.type==="success"?"var(--color-background-success)":toast.type==="error"?"var(--color-background-danger)":"var(--color-background-primary)",
+        border:`0.5px solid ${toast.type==="success"?"var(--color-border-success)":toast.type==="error"?"var(--color-border-danger)":"var(--color-border-secondary)"}`,
+        color:toast.type==="success"?"var(--color-text-success)":toast.type==="error"?"var(--color-text-danger)":"var(--color-text-primary)",
+        borderRadius:"var(--border-radius-md)",padding:"10px 18px",fontSize:13,zIndex:999,
+        boxShadow:"0 4px 20px rgba(0,0,0,0.15)",whiteSpace:"nowrap",pointerEvents:"none",
+        display:"flex",alignItems:"center",gap:8,fontWeight:toast.type!=="info"?500:400
+      }}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
+function App(){
+  const [view,setView]=useState("form");
+  const [submissions,setSubmissions]=useState([]);
+  const newCount=submissions.filter(s=>s.status==="New").length;
+
+  function handleSubmitted(newSubs){
+    setSubmissions(prev=>[...newSubs,...prev]);
+    setTimeout(()=>setView("dashboard"),1600);
+  }
+
+  const navBtn=(label,v,badge)=><button onClick={()=>setView(v)} style={{padding:"7px 14px",borderRadius:"var(--border-radius-md)",border:"0.5px solid",borderColor:view===v?"var(--color-border-primary)":"var(--color-border-tertiary)",background:view===v?"var(--color-background-secondary)":"transparent",cursor:"pointer",fontSize:13,fontWeight:view===v?500:400,color:view===v?"var(--color-text-primary)":"var(--color-text-secondary)",display:"flex",alignItems:"center",gap:6}}>
+    {label}
+    {badge>0&&<span style={{fontSize:10,background:"#5B9EE8",color:"#fff",borderRadius:10,padding:"1px 6px",fontWeight:600}}>{badge}</span>}
+  </button>;
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100vh"}}>
+      <div style={{height:50,background:"var(--color-background-primary)",borderBottom:"0.5px solid var(--color-border-tertiary)",display:"flex",alignItems:"center",padding:"0 20px",gap:12,flexShrink:0}}>
+        <div style={{fontFamily:"var(--font-serif)",fontSize:"1rem",fontWeight:500,marginRight:8}}>Volunteer Portal</div>
+        <div style={{width:"0.5px",height:20,background:"var(--color-border-tertiary)"}}/>
+        <div style={{display:"flex",gap:6}}>
+          {navBtn("Submit Opportunities","form",0)}
+          {navBtn("Coordinator Dashboard","dashboard",newCount)}
+          {navBtn("Applicants","applicants",0)}
+        </div>
+        <div style={{marginLeft:"auto",fontSize:11,color:"var(--color-text-tertiary)",display:"flex",alignItems:"center",gap:6}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#5DC490",display:"inline-block"}}/>
+          Connected to Airtable
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",minHeight:0}}>
+        {view==="form"?<SubmissionForm onSubmitted={handleSubmitted}/>:view==="applicants"?<Applicants/>:<Dashboard submissions={submissions} setSubmissions={setSubmissions}/>}
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
